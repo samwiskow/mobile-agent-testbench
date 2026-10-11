@@ -1,0 +1,38 @@
+{
+  "name": "@samwiskow/mobile-agent-testbench",
+  "version": "0.1.0",
+  "description": "A browser-based mobile testing console for AI agents. Android support with shared device sessions and test evidence.",
+  "type": "module",
+  "bin": {
+    "mobile-agent-testbench": "./bin/mobile-agent-testbench.mjs"
+  },
+  "exports": {
+    ".": "./src/console.mjs",
+    "./session": "./src/session.mjs",
+    "./session-cli": "./src/session-cli.mjs",
+    "./emulator": "./src/emulator.mjs"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "docs/",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/samwiskow/mobile-agent-testbench.git"
+  },
+  "author": "Sam Wiskow",
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,5 @@
+Mobile Agent Testbench
+Copyright 2026 Sam Wiskow
+
+The initial implementation was extracted from the Android testing tools in
+Longwork and generalized for use by other projects.

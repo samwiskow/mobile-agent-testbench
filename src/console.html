@@ -1,0 +1,29 @@
+<!doctype html>
+<!-- Copyright 2026 Sam Wiskow; SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mobile Agent Testbench</title>
+<style>
+body{font:16px system-ui;margin:16px;background:#f4f4f4;color:#161616;display:flex;gap:24px;align-items:flex-start}main{max-width:420px}img{display:block;width:auto;height:auto;max-width:min(390px,45vw);max-height:calc(100vh - 32px);touch-action:none;cursor:crosshair;border:1px solid #555}aside{max-width:460px}button,input,select{font:inherit;padding:8px;margin:4px 0}button{cursor:pointer}#status{white-space:pre-wrap}details{margin-top:24px}label{display:block}
+</style>
+<main><img id="screen" alt="Android device screen" draggable="false"></main>
+<aside><h1>Mobile Agent Testbench</h1><p>Use the visible screen. Click to tap; drag to swipe. Only the owned device receives input.</p>
+<div><button data-key="BACK">Back</button> <button data-key="HOME">Home</button> <button data-key="APP_SWITCH">Recent apps</button> <button data-key="ENTER">Enter</button> <button data-key="DEL">Delete</button></div>
+<label>Text for the focused Android field <input id="text" maxlength="200"></label><button id="type">Type text</button>
+<p><button data-kind="restart">Terminate and relaunch app</button> <button data-kind="capture">Save screenshot</button></p>
+<p id="status" role="status">Loading device screen…</p>
+__SETUP_CONTROLS__</aside>
+<script>
+const screen=document.querySelector('#screen'),status=document.querySelector('#status');let busy=false,start,nativeWidth=0,nativeHeight=0;
+let pendingScreen,screenUrl;
+const freshScreen=()=>pendingScreen??=(async()=>{try{const response=await fetch('screen?at='+Date.now(),{signal:AbortSignal.timeout(15000)});if(!response.ok)throw new Error((await response.json()).error??'Device capture failed');const blob=await response.blob(),frame=await createImageBitmap(blob),nextUrl=URL.createObjectURL(blob);nativeWidth=frame.width;nativeHeight=frame.height;frame.close();screen.src=nextUrl;if(screenUrl)URL.revokeObjectURL(screenUrl);screenUrl=nextUrl;if(status.textContent==='Loading device screen…')status.textContent='Device screen ready'}finally{pendingScreen=null}})();
+const refresh=()=>{if(!busy&&!start&&!pendingScreen)freshScreen().catch(error=>{status.textContent=error.message})};
+async function action(value){if(busy)return;busy=true;try{await pendingScreen?.catch(()=>{});const response=await fetch('action',{method:'POST',body:JSON.stringify(value)});const result=await response.json();await freshScreen();status.textContent=result.error??(result.evidence?'Saved screenshot: '+result.evidence:'Sent '+result.kind+' at '+new Date().toISOString());}catch(error){status.textContent=error.message}finally{busy=false}}
+const point=e=>{const r=screen.getBoundingClientRect();return{x:Math.max(0,Math.min(nativeWidth-1,Math.round((e.clientX-r.left)*nativeWidth/r.width))),y:Math.max(0,Math.min(nativeHeight-1,Math.round((e.clientY-r.top)*nativeHeight/r.height)))}};
+screen.onpointerdown=e=>{if(busy||!nativeWidth||!nativeHeight)return;start=point(e);screen.setPointerCapture(e.pointerId)};
+screen.onpointerup=e=>{if(!start)return;const end=point(e),distance=Math.hypot(end.x-start.x,end.y-start.y);action(distance<15?{kind:'tap',...start}:{kind:'swipe',...start,toX:end.x,toY:end.y});start=null};
+for(const button of document.querySelectorAll('[data-key]'))button.onclick=()=>action({kind:'key',key:button.dataset.key});
+for(const button of document.querySelectorAll('[data-kind]'))button.onclick=()=>action({kind:button.dataset.kind});
+for(const button of document.querySelectorAll('[data-setup]'))button.onclick=()=>action({kind:'setup',id:button.dataset.setup});
+document.querySelector('#type').onclick=()=>action({kind:'text',text:document.querySelector('#text').value});
+refresh();setInterval(refresh,1500);
+</script></html>
