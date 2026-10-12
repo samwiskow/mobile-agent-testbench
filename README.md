@@ -50,6 +50,11 @@ npx mobile-agent-testbench --app org.example.app
 # Exit the shell after closing the console to stop the temporary emulator.
 ```
 
+A separate supervisor stops the temporary emulator's process group if its
+session owner exits unexpectedly, including SIGKILL. Normal exit, cancellation
+and terminal hangup also stop it before releasing the device lock. Killing the
+supervisor itself can still interrupt cleanup.
+
 ## Device ownership
 
 ```sh
