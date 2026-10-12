@@ -73,6 +73,10 @@ them. A forced kill can leave an abandoned lock under
 owner and child processes have stopped before removing it. Never remove a live
 owner's lock to obtain a device.
 
+If command cleanup fails, the error reaches the caller and the session lock
+stays in place for manual recovery. Stop the remaining owner and command
+processes before removing that lock.
+
 ## Evidence
 
 - `run.json`: selected device, app package and session start/stop times.

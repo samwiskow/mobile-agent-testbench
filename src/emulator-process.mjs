@@ -8,7 +8,17 @@ async function main() {
   const [command, ...args] = process.argv.slice(2);
   const emulator = startCommand(command, args, { stopTimeout: 1000 });
   let stopping;
-  const stop = () => { stopping ??= emulator.stop(); };
+  const report = (stopped, error) => new Promise((resolve) => {
+    if (process.connected) process.send({ type: 'emulator-cleanup', stopped, error: error?.message }, () => resolve());
+    else resolve();
+  });
+  const stop = () => {
+    stopping ??= emulator.stop().then(() => report(true), async (error) => {
+      await report(false, error);
+      throw error;
+    });
+    stopping.catch(() => {});
+  };
   process.once('disconnect', stop);
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.once(signal, stop);
   try {

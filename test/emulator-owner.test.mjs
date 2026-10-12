@@ -40,15 +40,18 @@ setInterval(() => {}, 1000);
   });
   `], { env: { ...process.env, ANDROID_HOME: root, TEST_EMULATOR_PID: pidFile }, stdio: 'ignore' });
     let emulatorPid;
+    let ready = false;
     try {
       for (let i = 0; i < 100; i++) {
         try {
           emulatorPid = Number(await readFile(pidFile, 'utf8'));
           if (ending !== 'SIGKILL during boot') await readFile(readyFile);
+          ready = true;
           break;
         } catch { await delay(20); }
       }
       assert.ok(emulatorPid, 'The emulator started');
+      assert.ok(ready, 'The emulator reached the declared test state');
       if (ending.startsWith('SIG')) owner.child.kill(ending.split(' ')[0]);
       await owner.completion;
       let running = true;

@@ -44,6 +44,7 @@ export async function withAndroidSession(action, {
       await delay(250, undefined, { signal });
     }
   }
+  let cleanupFailed = false;
   try {
     await writeFile(path.join(lockDirectory, 'owner.json'), JSON.stringify(owner));
     signal?.throwIfAborted();
@@ -52,8 +53,11 @@ export async function withAndroidSession(action, {
       MOBILE_AGENT_TESTBENCH_SESSION: owner.token,
       MOBILE_AGENT_TESTBENCH_SESSION_DIRECTORY: lockDirectory,
     });
+  } catch (error) {
+    cleanupFailed = error.androidCleanupFailed === true;
+    throw error;
   } finally {
-    await rm(lockDirectory, { recursive: true, force: true });
+    if (!cleanupFailed) await rm(lockDirectory, { recursive: true, force: true });
   }
 }
 
@@ -78,17 +82,29 @@ export function startCommand(command, args, { env = process.env, cwd = process.c
   });
   // Background commands can fail before the caller starts waiting for readiness.
   completion.catch(() => {});
-  const stop = async () => {
-    if (!child.pid) return;
-    const kill = (signal) => {
-      try { process.kill(detached ? -child.pid : child.pid, signal); } catch (error) {
-        if (error.code !== 'ESRCH') throw error;
-      }
-    };
-    kill('SIGTERM');
-    await Promise.race([completion.catch(() => {}), delay(stopTimeout, undefined, { ref: false })]);
-    kill('SIGKILL');
-    await completion.catch(() => {});
+  let stopping;
+  const stop = () => {
+    if (!stopping) {
+      stopping = (async () => {
+        if (!child.pid) return;
+        const kill = (signal) => {
+          try { process.kill(detached ? -child.pid : child.pid, signal); } catch (error) {
+            if (error.code === 'ESRCH') return;
+            if (detached && error.code === 'EPERM' && !groupHasLiveProcesses(child.pid)) return;
+            throw error;
+          }
+        };
+        kill('SIGTERM');
+        await Promise.race([completion.catch(() => {}), delay(stopTimeout, undefined, { ref: false })]);
+        kill('SIGKILL');
+        await completion.catch(() => {});
+      })().catch((error) => {
+        error.androidCleanupFailed = true;
+        throw error;
+      });
+      stopping.catch(() => {});
+    }
+    return stopping;
   };
   return { child, completion, stop };
 }
@@ -96,16 +112,28 @@ export function startCommand(command, args, { env = process.env, cwd = process.c
 export async function runCommand(command, args, options = {}) {
   options.signal?.throwIfAborted();
   const task = startCommand(command, args, options);
-  const abort = () => { void task.stop(); };
+  let cancel;
+  const cancellation = new Promise((resolve) => { cancel = resolve; });
+  const abort = () => { cancel(task.stop()); };
   options.signal?.addEventListener('abort', abort, { once: true });
   try {
-    const result = await task.completion;
+    const result = await Promise.race([task.completion, cancellation]);
     options.signal?.throwIfAborted();
     if (result.code !== 0) throw new Error(`${command} exited with ${result.code ?? result.signal}.`);
   } finally {
     options.signal?.removeEventListener('abort', abort);
     await task.stop();
   }
+}
+
+function groupHasLiveProcesses(pid) {
+  // Darwin reports EPERM when a process group contains only zombies.
+  try {
+    return execFileSync('ps', ['-axo', 'pgid=,stat='], { encoding: 'utf8' }).split('\n').some((line) => {
+      const [group, state] = line.trim().split(/\s+/);
+      return Number(group) === pid && !state?.startsWith('Z');
+    });
+  } catch { return true; }
 }
 
 export function resolveDevice(requested, output) {

@@ -39,9 +39,23 @@ export async function withNewEmulator(action, {
 }
 
 function startOwnedEmulator(command, args, options) {
-  return startCommand(process.execPath, [fileURLToPath(new URL('./emulator-process.mjs', import.meta.url)), command, ...args], {
+  const task = startCommand(process.execPath, [fileURLToPath(new URL('./emulator-process.mjs', import.meta.url)), command, ...args], {
     ...options, stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
   });
+  const cleanup = new Promise((resolve) => {
+    task.child.on('message', (message) => {
+      if (message?.type === 'emulator-cleanup') resolve(message);
+    });
+    task.child.once('disconnect', () => resolve({ stopped: false }));
+    task.child.once('error', () => resolve({ stopped: false }));
+  });
+  return { ...task, stop: async () => {
+    await task.stop();
+    const result = await cleanup;
+    if (!result.stopped) throw Object.assign(new Error(result.error ?? 'Temporary emulator cleanup was not confirmed.'), {
+      androidCleanupFailed: true,
+    });
+  } };
 }
 
 async function waitForEmulator(emulator, serial, { env, signal, inspect }) {
