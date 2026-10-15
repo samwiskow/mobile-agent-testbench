@@ -25,10 +25,13 @@ setInterval(() => {}, 1000);
   const controller = new AbortController();
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.once(signal, () => controller.abort());
   await withNewEmulator(async () => {
-    await writeFile(${JSON.stringify(readyFile)}, 'ready');
-    if (${JSON.stringify(ending)} === 'success') return;
-    if (${JSON.stringify(ending)} === 'failure') throw new Error('Test command failed');
-    await new Promise((_, reject) => controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true }));
+    await new Promise((resolve, reject) => {
+      controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true });
+      writeFile(${JSON.stringify(readyFile)}, 'ready').then(() => {
+        if (${JSON.stringify(ending)} === 'success') resolve();
+        if (${JSON.stringify(ending)} === 'failure') reject(new Error('Test command failed'));
+      }, reject);
+    });
   }, {
     avd: 'Pixel_7a', signal: controller.signal, lockDirectory: ${JSON.stringify(path.join(root, 'lock'))},
     portsAvailable: async () => true,
