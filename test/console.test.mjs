@@ -8,6 +8,22 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { startComputerConsole } from '../src/console.mjs';
 
+test('an iOS console sends screen coordinates to its device adapter', async () => {
+  const results = await mkdtemp(path.join(tmpdir(), 'ios-console-'));
+  const calls = [];
+  const png = Buffer.alloc(24); png.writeUInt32BE(1640, 16); png.writeUInt32BE(2360, 20);
+  const console = await startComputerConsole({ results, appId: 'org.example.notes', platform: 'ios', device: {
+    screenshot: async () => png,
+    tap: async (x, y) => calls.push([x, y]),
+  } });
+  try {
+    assert.match(await (await fetch(console.url)).text(), /iOS device screen/);
+    const response = await fetch(`${console.url}action`, { method: 'POST', headers: { Origin: new URL(console.url).origin }, body: JSON.stringify({ kind: 'tap', x: 820, y: 1180 }) });
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls, [[820, 1180]]);
+  } finally { await console.stop(); await rm(results, { recursive: true, force: true }); }
+});
+
 test('screen input keeps native coordinates while the next screenshot loads', async () => {
   const html = await readFile(new URL('../src/console.html', import.meta.url), 'utf8');
   const requests = [];
