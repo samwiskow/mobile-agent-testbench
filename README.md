@@ -8,8 +8,9 @@ records attempted actions, their outcomes and saved screenshots.
 
 ![Mobile Agent Testbench controlling Android Settings](docs/android-console.png)
 
-**Current platform: Android.** Hosts: macOS and Linux. iOS support is outside
-this first release. There is no hosted service or account requirement.
+**Default platform: Android.** Hosts: macOS and Linux. An optional
+[iOS console API](docs/ios.md) connects to an owned Appium XCUITest session on
+macOS. There is no hosted service requirement.
 
 ## Start
 

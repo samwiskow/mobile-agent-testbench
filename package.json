@@ -10,7 +10,9 @@
     ".": "./src/console.mjs",
     "./session": "./src/session.mjs",
     "./session-cli": "./src/session-cli.mjs",
-    "./emulator": "./src/emulator.mjs"
+    "./emulator": "./src/emulator.mjs",
+    "./ios": "./src/ios.mjs",
+    "./ios-session": "./src/ios-session.mjs"
   },
   "files": [
     "bin/",
