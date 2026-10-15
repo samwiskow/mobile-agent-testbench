@@ -7,7 +7,8 @@ import path from 'node:path';
 
 export async function startComputerConsole({ adb, device, platform = 'android', results, appId, setupActions = [] }) {
   if (!['android', 'ios'].includes(platform) || (platform === 'ios' && !device)) throw new Error('iOS requires a device adapter.');
-  if (!/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(appId ?? '')) throw new Error('A valid Android app package is required.');
+  const appIdPattern = platform === 'ios' ? /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/ : /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/;
+  if (!appIdPattern.test(appId ?? '')) throw new Error(platform === 'ios' ? 'A valid iOS bundle ID is required.' : 'A valid Android app package is required.');
   await mkdir(results, { recursive: true });
   const base = '/' + randomUUID() + '/';
   const escape = (value) => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');

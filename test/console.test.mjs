@@ -12,7 +12,7 @@ test('an iOS console sends screen coordinates to its device adapter', async () =
   const results = await mkdtemp(path.join(tmpdir(), 'ios-console-'));
   const calls = [];
   const png = Buffer.alloc(24); png.writeUInt32BE(1640, 16); png.writeUInt32BE(2360, 20);
-  const console = await startComputerConsole({ results, appId: 'org.example.notes', platform: 'ios', device: {
+  const console = await startComputerConsole({ results, appId: 'org.example.my-app', platform: 'ios', device: {
     screenshot: async () => png,
     tap: async (x, y) => calls.push([x, y]),
   } });
@@ -187,4 +187,8 @@ test('a partly applied action and its successful retry remain separate in the ev
     assert.match(records[1].error, /Launch failed/);
     assert.ok(records.every(({ at, kind }) => Number.isFinite(Date.parse(at)) && kind === 'restart'));
   } finally { await console.stop(); await rm(results, { recursive: true, force: true }); }
+});
+
+test('Android consoles continue to reject hyphenated package names', async () => {
+  await assert.rejects(startComputerConsole({ appId: 'org.example.my-app' }), /valid Android app package/);
 });
